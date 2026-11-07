@@ -327,6 +327,49 @@ $('#btnTheme').addEventListener('click',function(){
   th=TH[(TH.indexOf(th)+1)%3];setTheme(th)});
 $('#btnReload').addEventListener('click',function(){location.reload()});
 
+/* ---------- CCI 門檻（大盤／觀察／詳情頁共用） ---------- */
+/* 進場價＝會觸發金叉的價格、止損價＝會觸發死叉的價格。兩者互斥，
+   每根只有一側是「活的」；今日剛穿越過的另一側標「已」（值即當日收盤）。 */
+var CX={};
+(function(){var a=((D.cci||{}).rows)||[],i;
+  for(i=0;i<a.length;i++)CX[a[i].t]=a[i]})();
+function cciOf(t){return CX[t]||null}
+/* 卡片用：兩個 stats 格（活的那一側 ＋ 距門檻） */
+function cciCells(t){
+  var x=cciOf(t);if(!x)return '';
+  var fwd=(x.entk==='fwd')?['進場價',x.ent,'pos']
+         :((x.slk==='fwd')?['止損價',x.sl,'neg']:null);
+  if(!fwd)return '';
+  return '<div><div class="k">'+fwd[0]+'</div><div class="v '+fwd[2]+'">'
+    +fmt(fwd[1],2)+'</div></div>'
+    +'<div><div class="k">距門檻</div><div class="v '+cl(x.gap)+'">'+sgn(x.gap,2)+'%</div></div>';
+}
+/* 詳情頁用：整張卡，兩側都列（非活的那側標「已觸發」或「—」） */
+function cciCard(t){
+  var x=cciOf(t);
+  /* 離門檻 >5% 的標的不收錄（純雜訊）。詳情頁靜默不顯示會被當成漏資料，講一句 */
+  if(!x)return '<div class="card"><div class="bhead"><span class="h">CCI 門檻</span></div>'
+    +'<div class="mnote" style="border:none;padding:6px 0 0;margin:0">'
+    +'距下一根穿越門檻超過 5%，未收錄。</div></div>';
+  function px(v,kind){
+    if(v==null)return '—';
+    return fmt(v,2)+(kind==='hit'?'（今日已觸發）':'')}
+  var k={g:'今日金叉',d:'今日死叉',n:'尚未穿越・待'+(x.want||'')}[x.k];
+  return '<div class="card"><div class="bhead"><span class="h">CCI 門檻</span>'
+    +'<span class="sp"></span><span class="pill'
+    +(x.k==='g'?' long':(x.k==='d'?' short':''))+'">'+esc(k)+'</span>'
+    +(x.pine?'<span class="cfb">✓三條件</span>':'')+'</div>'
+    +'<div class="kv">'
+    +kv('進場價（觸發金叉）',px(x.ent,x.entk))
+    +kv('止損價（觸發死叉）',px(x.sl,x.slk))
+    +kv('距門檻',sgn(x.gap,2)+'%')
+    +kv('CCI_A',fmt(x.a,1))+kv('均線 SMA',fmt(x.sma,1))+kv('CCI_B',fmt(x.b,1))
+    +'</div>'
+    +'<div class="mnote" style="border:none;padding:6px 0 0;margin:0">'
+    +'兩者互斥，每根只有一側是「活的」。這是<b>收盤價門檻</b>不是盤中停損單——'
+    +'明日收盤跌破才觸發死叉、後日開盤才出場；門檻每天重算會移動。</div></div>';
+}
+
 /* ---------- 分頁 ---------- */
 var tab='mkt';
 function go(t){
@@ -387,6 +430,7 @@ function renderMkt(){
       +'<div><div class="k">距月線</div><div class="v '+cl(m.ma_dev)+'">'+sgn(m.ma_dev,2)+'%</div></div>'
       +'<div><div class="k">壓力線</div><div class="v">'+fmt(m.resist,2)+'</div></div>'
       +'<div><div class="k">支撐線</div><div class="v">'+fmt(m.support,2)+'</div></div>'
+      +cciCells(m.t)
       +'</div>'
       +'<div class="mnote">'+esc(m.nm||'')+(m.nm?'：':'')+esc(m.note||'')+'</div>'
       +'</div>')});
@@ -426,6 +470,7 @@ function renderWatch(){
       +'<div><div class="k">量比</div><div class="v">'+fmt(w.vratio,2)+'</div></div>'
       +'<div><div class="k">相對大盤</div><div class="v '+cl(w.rs20)+'">'+sgn(w.rs20,1)+'%</div></div>'
       +'<div><div class="k">均線</div><div class="v" style="font-size:13px">'+esc(w.ma_align)+'</div></div>'
+      +cciCells(w.t)
       +'</div>'
       +'<div class="tags">'+turn(w.kdt)+turn(w.mct)
       +'<span class="pill">'+esc(w.basis||'')+'</span></div>'
@@ -699,6 +744,7 @@ function openMk(t){
     return '<div class="card"><div class="bhead"><span class="h">'+lab+'</span></div>'
       +'<div class="kv">'+kv('價位',fmt(p.v,2))+kv('日期',esc(p.d))
       +(p.conf?kv('確認日',esc(p.conf)):'')+'</div></div>'}
+  B.push(cciCard(m.t));
   B.push(pv(m.h1,'最近轉折高（前高）')+pv(m.h2,'前一個轉折高')
     +pv(m.l1,'最近轉折低（前低）')+pv(m.l2,'前一個轉折低'));
   var gt=m.stance||{};
@@ -729,6 +775,7 @@ function openWatch(i){
     +kv('近 '+M.rs_n+' 日報酬',sgn(w.ret20,2)+'%')
     +kv('相對大盤（減 SPY）',sgn(w.rs20,2)+'%')
     +'</div></div>');
+  B.push(cciCard(w.t));
   B.push('<div class="card"><div class="bhead"><span class="h">KD 轉向</span>'
     +'<span class="sp"></span>'+turn(w.kdt)+'</div>'
     +'<div class="fb" style="padding:0">'+esc((w.kdt||{}).w||'—')+'</div></div>');
@@ -779,6 +826,7 @@ function openRow(i){
     +kv('標的類型',x.etf?'ETF':'個股')
     +(x.watch?kv('觀察清單','★ 是'):'')
     +'</div></div>');
+  B.push(cciCard(x.t));
   B.push('<div id="hv"><div class="load">載入逐項判定…</div></div>');
   openSheet(headOf(x.t,x.nm,x.c,null),B.join(''));
   fetchHeavy(x.t).then(function(j){
