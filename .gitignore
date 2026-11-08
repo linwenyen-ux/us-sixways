@@ -1,0 +1,5 @@
+# Finder 會在資料夾裡留下 .DS_Store。publish_pages.sh 用 `git add -A`，
+# 不擋的話它會被推上公開 repo；而且未追蹤檔案會讓 run_*_daily.sh 的
+# app_published_ok()（用 git status --porcelain 判斷）誤判成「尚未發布」，
+# 導致後面幾班重跑一次沒必要的發布。2026-11-09 加。
+.DS_Store
