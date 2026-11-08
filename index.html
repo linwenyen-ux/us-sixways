@@ -370,6 +370,33 @@ function cciCard(t){
     +'明日收盤跌破才觸發死叉、後日開盤才出場；門檻每天重算會移動。</div></div>';
 }
 
+/* CCI 列點開。335 檔裡只有一部分在觀察／全池／大盤有完整六面向資料，
+   所以先找最豐富的那一份，都沒有才退回只有 CCI 門檻的簡卡 —— 不能讓使用者
+   點了沒反應（2026-11-09 補；先前只做了篩選頁，漏了列本身）。 */
+function openCci(t){
+  var i, W=D.watch||[], MK=D.market||[];
+  for(i=0;i<W.length;i++){if(W[i].t===t){openWatch(i);return}}
+  for(i=0;i<MK.length;i++){if(MK[i].t===t){openMk(t);return}}
+  for(i=0;i<R.length;i++){if(R[i].t===t){openRow(i);return}}
+  openCciOnly(t);
+}
+function openCciOnly(t){
+  var x=cciOf(t);if(!x)return;
+  push('cci:'+t);
+  var B=['<div class="card"><div class="kv">'
+    +kv('收盤',fmt(x.c,2))
+    +kv('月線（20MA）',fmt(x.ma20,2))
+    +kv('距月線',sgn(x.dev,2)+'%')
+    +kv('標的類型',x.etf?'ETF':'個股')
+    +(x.watch?kv('觀察清單','★ 是'):'')
+    +'</div></div>'];
+  B.push(cciCard(t));
+  B.push('<div class="card"><div class="mnote" style="border:none;padding:0;margin:0">'
+    +'這一檔近 '+M.window+' 日沒有六大策略訊號、也不在觀察清單，'
+    +'所以只有 CCI 門檻資料，沒有六面向檢核。</div></div>');
+  openSheet(headOf(t,null,x.c,null),B.join(''));
+}
+
 /* ---------- 分頁 ---------- */
 var tab='mkt';
 function go(t){
@@ -645,7 +672,7 @@ function renderCci(){
   var P=[];
   for(i=0;i<r.length;i++){
     var x=r[i];
-    P.push('<div class="prow crow2">'
+    P.push('<div class="prow crow2" data-ct="'+esc(x.t)+'">'
       +'<span class="c1">'+cstate(x)+'</span>'
       +'<span class="c2">'
       +'<span class="t1"><span class="sym">'+esc(x.t)+'</span>'
@@ -666,6 +693,8 @@ function renderCci(){
   var nb=cnactive();
   $('#btnCFilter').textContent=nb?('⚙ 篩選 ·'+nb):'⚙ 篩選';
   $('#btnCFilter').className=nb?'chip on':'chip';
+  $$('#clist .prow[data-ct]').forEach(function(el){
+    el.addEventListener('click',function(){openCci(el.dataset.ct)})});
   var bc=$('#btnCClear');if(bc)bc.addEventListener('click',cclearAll);
 }
 function csyncChips(){
@@ -897,6 +926,7 @@ function restore(){
     if(t.indexOf('mk:')===0)openMk(t.slice(3));
     else if(t.indexOf('w:')===0)openWatch(+t.slice(2));
     else if(t.indexOf('row:')===0)openRow(+t.slice(4));
+    else if(t.indexOf('cci:')===0)openCciOnly(t.slice(4));
   }
   replaying=false;
 }
@@ -906,7 +936,7 @@ window.addEventListener('popstate',function(){stack.pop();restore()});
 renderMkt();renderWatch();renderPool();renderCci();
 var t0='mkt';
 try{t0=localStorage.getItem('sixways-tab')||'mkt'}catch(e){}
-if(['mkt','watch','pool'].indexOf(t0)<0)t0='mkt';
+if(['mkt','watch','pool','cci'].indexOf(t0)<0)t0='mkt';
 go(t0);
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
