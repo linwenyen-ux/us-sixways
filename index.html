@@ -337,12 +337,20 @@ function cciOf(t){return CX[t]||null}
 /* 卡片用：兩個 stats 格（活的那一側 ＋ 距門檻） */
 function cciCells(t){
   var x=cciOf(t);if(!x)return '';
+  /* 進場價與止損價互斥：今日剛穿越時，「活的」是<b>相反</b>那一側。
+     原本只畫活的那側，於是死叉當天的卡片秀出一個進場價，看起來像快到買點——
+     2026-11-13 的 SPY／IWM 就是這樣（實際踩到才發現）。所以剛觸發的那一側要先標出來。 */
+  var P='';
+  if(x.k==='g'&&x.entk==='hit')
+    P+='<div><div class="k">今日金叉</div><div class="v pos">'+fmt(x.ent,2)+'</div></div>';
+  else if(x.k==='d'&&x.slk==='hit')
+    P+='<div><div class="k">今日死叉</div><div class="v neg">'+fmt(x.sl,2)+'</div></div>';
   var fwd=(x.entk==='fwd')?['進場價',x.ent,'pos']
          :((x.slk==='fwd')?['止損價',x.sl,'neg']:null);
-  if(!fwd)return '';
-  return '<div><div class="k">'+fwd[0]+'</div><div class="v '+fwd[2]+'">'
-    +fmt(fwd[1],2)+'</div></div>'
-    +'<div><div class="k">距門檻</div><div class="v '+cl(x.gap)+'">'+sgn(x.gap,2)+'%</div></div>';
+  if(fwd)
+    P+='<div><div class="k">'+fwd[0]+'</div><div class="v '+fwd[2]+'">'+fmt(fwd[1],2)+'</div></div>';
+  if(!P)return '';
+  return P+'<div><div class="k">距門檻</div><div class="v '+cl(x.gap)+'">'+sgn(x.gap,2)+'%</div></div>';
 }
 /* 詳情頁用：整張卡，兩側都列（非活的那側標「已觸發」或「—」） */
 function cciCard(t){
